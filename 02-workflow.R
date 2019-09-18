@@ -52,14 +52,16 @@ saveRDS(filter_list, file = file.path(root_path, 'small', "filter_list"))
 filter_list <- readRDS(file = file.path(root_path, 'small', "filter_list"))
 
 
-# create image_folder
+# get image_folder
 image_folder <- bind_rows(resize_list) %>%
   dplyr::select(outname) %>%
   head(n=1) %>% pull() %>% dirname()
 
-# getwd should be "/media/mike/Elements/Axio Scan"
+print(root_path)
+print(image_folder)
+
 # possible path problems here...
-image_folder <- file.path(getwd(), image_folder)
+image_folder <- file.path(root_path, "small")
 
 # MANUAL STEPS #####
 # manual way matching AP level and images
@@ -69,10 +71,10 @@ match_df <- match_image_to_atlas(image_folder)
 match_df <- inspect_AP_match(match_df)
 
 # save the df! 
-saveRDS(match_df, file.path(getwd(), root_path, "atlas_img_path_df"))
+saveRDS(match_df, file.path(root_path, "atlas_img_path_df"))
 
 # read it from file if already done
-match_df <- readRDS(file.path(getwd(), root_path, "atlas_img_path_df"))
+match_df <- readRDS(file.path(root_path, "atlas_img_path_df"))
 
 ## solve problem with duplicated
 
@@ -90,9 +92,9 @@ match_df_2 <- rename_AP(match_df_2)
 
 # Stop point ####
 # save the new df! 
-saveRDS(match_df_2, file.path(getwd(), root_path, "ordered_atlas_img_path_df"))
+saveRDS(match_df_2, file.path(root_path, "ordered_atlas_img_path_df"))
 
-match_df_2 <- readRDS(file.path(getwd(), root_path, "ordered_atlas_img_path_df"))
+match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
 
 # Create setup object ######
 ## From here, we can get our setup values
@@ -115,7 +117,7 @@ setup$regi_z <- stringr::str_extract(match_df_2$image_file, pattern = "Z[0-9]+")
 setup$regi_z <- as.numeric(stringr::str_remove(setup$regi_z, pattern = "Z0+"))
 
 setup$image_paths <- NULL
-setup$regi_channel <- file.path(getwd(), root_path, "small")
+setup$regi_channel <- file.path(root_path, "small")
 # I WANT TO ONLY DO REGISTRATION ON DAPI CHANNEL...
 # REPEATING SEG CHANNEL SO IT DOES NOT BREAK, DOES IT TAKE LONGER !?!?!
 setup$seg_channel <- setup$regi_channel
@@ -126,7 +128,7 @@ setup$image_paths$regi_paths <- match_df_2$image_file
 setup$image_paths$seg_paths <-  match_df_2$image_file
 
 # output folder for registration files...
-setup$output <- file.path(getwd(), root_path)
+setup$output <- root_path
 setup <- get_savepaths(setup)
 
 
