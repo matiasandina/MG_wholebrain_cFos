@@ -1,9 +1,9 @@
 ---
 title: "MG wholebrain cFos pipeline"
-author: "Matias Andina"
-date: "`r Sys.time()`"
 output: rmarkdown::github_document
 ---
+
+This repo contains the information and pipeline used to analyze data for wholebrain cFos mapping.
 
 # Introduction
 
@@ -26,7 +26,7 @@ We will be working with a tree structure that looks like this
 
 Briefly:
 
-* `raw_data` will have animal folders by name
+* `raw_data` will have animal folders by name ("MG[0-9]+").
 * Each animal folder will contain the `.czi` files and a number of folders created by the pipeline.
   * `c0` ->> DAPI (registration channel)
   * `c1` ->> cFOS (segmentation channel)
@@ -38,6 +38,8 @@ Briefly:
 Files are named with this general pattern
 
 # Pipeline 
+
+Below, I detail the pipeline, describing what will be done by each of the R scripts used to run it.
 
 ## 01-workflow.R
 
@@ -66,7 +68,7 @@ The call to python currently uses this python.
 
 > "/home/mike/miniconda3/bin/python" 
 
-It might fail when executed from another computer, so, from command line:
+It might fail when executed from another computer. To check where is your python located, run from command line:
 
 ```
 which python
@@ -140,8 +142,8 @@ The result is an object of class `data.frame` with 2 columns:
 
 ```{r, eval = FALSE}
 names(match_df)
-```
 [1] "image_file"     "mm.from.bregma"
+```
 
 We could have matched 2 images to the same AP level. Moreover, we could have made a mistake during the assignment. Thus, we use the function `inspect_AP_match` to check for duplicates and make sure all assignments were correct.
 
@@ -237,3 +239,7 @@ This is quite verbose, so the user should be able to follow. Progress will be pr
 
 We get all the images and group them by region.
 Because the partition is not reproducible (involving `sample_frac()`), we save the partition list to be able to later follow what happened (i.e., what image went where). We can put all the images back by reversing the `rename.files()` call to move files back from the `training/testing` folder to the `composites` folder. 
+
+## iLastik
+
+We are now ready to move to [iLastik](https://www.ilastik.org) to perform pixel classification assisted by human labeling. 
