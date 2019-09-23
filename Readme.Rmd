@@ -2,7 +2,7 @@
 title: "MG wholebrain cFos pipeline"
 author: "Matias Andina"
 date: "`r Sys.time()`"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 # Introduction
