@@ -8,12 +8,11 @@ source("find_contours.R")
 source("registration_MLA.R")
 source("create_roi_id_table.R") # there are some functions here
 
-# TODO: add ways of feeding each animal and root_folder
 # TODO: make sure it's possible to read previous saved stuff instead of re-running everything
 
-animal_id <- "MG952"
-
 root_path <- choose_directory()
+# get the animal ID from path
+animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
 
 
 # find original files
@@ -90,6 +89,12 @@ match_df_2 <- rename_AP(match_df_2)
 # lala <- list.files("raw_data/MG952/001/001/small/", 'tif', full.names = TRUE)
 # file.rename(from = lala, to=gsub(lala, pattern = "_Z[0-9]+", replacement = ""))
 
+
+match_df_2 <- match_df_2 %>%
+  # convert to basename to make things simpler with paths
+  mutate(old_names = basename(stringr::str_remove(image_file, pattern = "_Z0*[0-9]*")))
+
+
 # Stop point ####
 # save the new df! 
 saveRDS(match_df_2, file.path(root_path, "ordered_atlas_img_path_df"))
@@ -131,10 +136,6 @@ setup$image_paths$seg_paths <-  match_df_2$image_file
 setup$output <- root_path
 setup <- get_savepaths(setup)
 
-
-match_df_2 <- match_df_2 %>%
-  # convert to basename to make things simpler with paths
-  mutate(old_names = basename(stringr::str_remove(image_file, pattern = "_Z0*[0-9]*")))
 
   
 # match all in the new order
