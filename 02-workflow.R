@@ -3,17 +3,30 @@ library(wholebrain)
 library(SMART)
 library(dplyr)
 
+# To remove all objects but not functions
+# rm(list = setdiff(ls(), lsf.str()))
+
 source("resize_pad.R")
 source("find_contours.R")
 source("registration_MLA.R")
 source("create_roi_id_table.R") # there are some functions here
+
+# This little function comes in handy to fix issues with the path
+# when running from different computers, everything up to raw_data will be different
+# so we switch that by the local environment's "raw_data" folder
+# helper ro fix the working environment
+fix_working_environment <- function(saved_path, local_path){
+  # this will explode if the folder structure doesn't work as expected...
+  stringr::str_replace(saved_path, ".+raw_data/", local_path)
+}
+
 
 # TODO: make sure it's possible to read previous saved stuff instead of re-running everything
 
 root_path <- choose_directory()
 # get the animal ID from path
 animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
-
+raw_data <- stringr::str_extract(root_path, ".+raw_data/")
 
 # find original files
 # c0 is dapi files
@@ -129,8 +142,8 @@ setup$seg_channel <- setup$regi_channel
 
 # im_sort(setup) ## im_sot not working
 # doing it manually
-setup$image_paths$regi_paths <- match_df_2$image_file 
-setup$image_paths$seg_paths <-  match_df_2$image_file
+setup$image_paths$regi_paths <- fix_working_environment(match_df_2$image_file, raw_data) 
+setup$image_paths$seg_paths <-  fix_working_environment(match_df_2$image_file, raw_data)
 
 # output folder for registration files...
 setup$output <- root_path
@@ -156,6 +169,11 @@ regi_loop(setup, ordered_filter_list, autoloop = TRUE, brightness = 40)
 plates <- inspect_wrong_regi_plates(setup)
 
 
+# load previous regi if needed
+# previous_regi <- list.files(file.path(root_path, "R_data"), full.names = TRUE)
+# load(file = previous_regi)
+
+  
 # Manual fix of registration ####
 regi_loop(setup, regis = regis,
           touchup = plates, brightness = 20,
@@ -166,10 +184,10 @@ regi_loop(setup, regis = regis,
 # things like "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/Animal_2.20950382, 2.10835878, 1.60263359, 1.50148855, 1.29919847, 1.0969084, 0.99576336, 0.79347328, 0.692328244274809, 0.59118321, 0.08545802, -0.31912213740458, -0.42026718, -1.12828244, -1.22942748, -1.5328626, -1.73515267, -1.83629771, -2.03858779_2019-09-11_1.RData" 
 # setup$savepaths$envir_savepath
 
-# Stop point #####
+# Stop point #####  
 # Save regis!
-save(regis, file = "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/MG952_regis.RData")
-
+save(regis, file = previous_regi)
+  
 load(file = "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/MG952_regis.RData")
 
 # Get contours ####

@@ -6,7 +6,7 @@
 
 # This will print a lot of 
 # [WARN] Unknown IlluminationType value 'Fluorescence' will be stored as "Other"
-# don't worry, it's fine
+# don't worry, it's fine  
 # each call takes A WHILE
 
 # getwd() should be "/home/mike/MG_wholebrain_cFos" (or the equivalent MG_wholebrain_cFos folder)
@@ -29,13 +29,13 @@ root_path <- SMART::choose_directory()
 # get the animal ID from path
 animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
 
-old_names <- list.files(root_path, pattern=".tif", full.names = TRUE)
+old_names <- list.files(root_path, pattern = ".tif", full.names = TRUE)
 new_names <- gsub(pattern = ".czi #", replacement = "_", x = old_names, fixed = TRUE)
 
 # we also fix the space between slide and the number
-new_names <-gsub(pattern = "slide ", "slide-", x = new_names)
+new_names <- gsub(pattern = "slide ", "slide-", x = new_names)
 
-file.rename(from=old_names, to=new_names)
+file.rename(from = old_names, to = new_names)
 
 # composite .tif to single channel .tif ####
 
