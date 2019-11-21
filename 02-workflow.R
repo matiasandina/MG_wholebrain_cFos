@@ -170,10 +170,9 @@ plates <- inspect_wrong_regi_plates(setup)
 
 
 # load previous regi if needed
-# previous_regi <- list.files(file.path(root_path, "R_data"), full.names = TRUE)
-# load(file = previous_regi)
+previous_regi <- list.files(file.path(root_path, "R_data"), full.names = TRUE)
+load(file = previous_regi)
 
-  
 # Manual fix of registration ####
 regi_loop(setup, regis = regis,
           touchup = plates, brightness = 20,

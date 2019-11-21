@@ -12,9 +12,9 @@
 # getwd() should be "/home/mike/MG_wholebrain_cFos" (or the equivalent MG_wholebrain_cFos folder)
 
 macro_to_run <- list.files(getwd(), "czi_to_composite_tiff", full.names = TRUE)
-
+  
 system(paste("/home/mike/Downloads/Fiji.app/ImageJ-linux64 --run",
-             macro_to_run))
+               macro_to_run))
 
 
 #### MANUAL STEP ######
