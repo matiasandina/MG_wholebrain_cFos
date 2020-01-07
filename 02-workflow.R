@@ -16,8 +16,8 @@ source("create_roi_id_table.R") # there are some functions here
 # so we switch that by the local environment's "raw_data" folder
 # helper ro fix the working environment
 fix_working_environment <- function(saved_path, local_path){
-  # this will explode if the folder structure doesn't work as expected...
-  stringr::str_replace(saved_path, ".+raw_data/", local_path)
+# this will explode if the folder structure doesn't work as expected...
+stringr::str_replace(saved_path, ".+raw_data/", local_path)
 }
 
 
@@ -29,7 +29,7 @@ animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
 raw_data <- stringr::str_extract(root_path, ".+raw_data/")
 
 # find original files
-# c0 is dapi files
+# c0 is dapi files  
 files <- list.files(path = file.path(root_path, 'c0'),
                     pattern = ".tif", full.names = TRUE)
 
@@ -43,7 +43,7 @@ resize_list <- purrr::map(files, function(x) resize_pad(filename = x, pad=200))
 write.csv(bind_rows(resize_list),
           file.path(root_path, paste0(animal_id, "_resize_list.csv")),
           row.names=FALSE)
-
+              
 resize_list <- read.csv(file.path(root_path, paste0(animal_id, "_resize_list.csv")),
                                   stringsAsFactors = FALSE)
 
@@ -111,7 +111,7 @@ match_df_2 <- match_df_2 %>%
 # Stop point ####
 # save the new df! 
 saveRDS(match_df_2, file.path(root_path, "ordered_atlas_img_path_df"))
-
+  
 match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
 
 # Create setup object ######
