@@ -1,5 +1,5 @@
 
-raw_data <- "/media/mike/Elements/Axio Scan/raw_data/"
+raw_data <- "/media/choilab/Elements/Axio Scan/raw_data/"
 
 animals <- list.files(raw_data)
 
