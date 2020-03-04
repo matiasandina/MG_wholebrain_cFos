@@ -57,74 +57,74 @@ animal_df <- left_join(mdf, r, by = "animal") %>%
   # filter the animals
   filter(flag == TRUE)
 
+
+for(animal in animal_df$animal){
+  # make the path again
+  root_path <- file.path(raw_data, animal, "001")
   
-  for(animal in animal_df$animal){
-    # make the path again
-    root_path <- file.path(raw_data, animal, "001")
-    
-    # Read data #### 
-    
-    match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
-    
-    filter_list <- readRDS(file = file.path(root_path, 'small', "filter_list"))
-    
-    # match all in the new order
-    new_order <- sapply(match_df_2$old_names, function(x) which(basename(names(filter_list)) == x))
-    
-    # we need to match the filters with the images
-    ordered_filter_list <- filter_list[new_order]
-    
-    # Create setup object ######
-    ## From here, we can get our setup values
-    
-    setup <- list()
-    # First AP
-    setup$first_AP <- first(match_df_2$mm.from.bregma)
-    # Last AP
-    setup$last_AP <- last(match_df_2$mm.from.bregma)
-    # First Z value
-    # not truly needed if partial instead of wholebrain?
-    setup$first_z <- NULL 
-    # Last Z value
-    # not truly needed if partial instead of wholebrain?
-    setup$last_z <- NULL
-    
-    setup$regi_AP <- match_df_2$mm.from.bregma 
-    setup$regi_z <- stringr::str_extract(match_df_2$image_file, pattern = "Z[0-9]+")  
-    # replace zeros and Z
-    setup$regi_z <- as.numeric(stringr::str_remove(setup$regi_z, pattern = "Z0+"))
-    
-    setup$image_paths <- NULL
-    setup$regi_channel <- file.path(root_path, "small")
-    # I WANT TO ONLY DO REGISTRATION ON DAPI CHANNEL...
-    # REPEATING SEG CHANNEL SO IT DOES NOT BREAK, DOES IT TAKE LONGER !?!?!
-    setup$seg_channel <- setup$regi_channel
-    
-    # im_sort(setup) ## im_sot not working
-    # doing it manually
-    setup$image_paths$regi_paths <- fix_working_environment(match_df_2$image_file, raw_data) 
-    setup$image_paths$seg_paths <-  fix_working_environment(match_df_2$image_file, raw_data)
-    
-    # output folder for registration files...
-    setup$output <- root_path
-    setup <- get_savepaths(setup)
-    
-    regi_loop(setup, ordered_filter_list, autoloop = TRUE, brightness = 40)
-    
-    # save regis object ####
-    # "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/MG952_regis.RData"
-    new_name <- paste0(animal, "_regis.Rdata")
-    save(regis, file = file.path(root_path, 'R_data', new_name))
-    
-    # delete all previous objects
-    rm(filter_list)
-    rm(ordered_filter_list)
-    rm(match_df_2)
-    # regis gets assigned to the global environment
-    rm(regis, envir = .GlobalEnv)
-    rm(setup)
-    rm(root_path)
-    
-  }  
-   
+  # Read data #### 
+  
+  match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
+  
+  filter_list <- readRDS(file = file.path(root_path, 'small', "filter_list"))
+  
+  # match all in the new order
+  new_order <- sapply(match_df_2$old_names, function(x) which(basename(names(filter_list)) == x))
+  
+  # we need to match the filters with the images
+  ordered_filter_list <- filter_list[new_order]
+  
+  # Create setup object ######
+  ## From here, we can get our setup values
+  
+  setup <- list()
+  # First AP
+  setup$first_AP <- first(match_df_2$mm.from.bregma)
+  # Last AP
+  setup$last_AP <- last(match_df_2$mm.from.bregma)
+  # First Z value
+  # not truly needed if partial instead of wholebrain?
+  setup$first_z <- NULL 
+  # Last Z value
+  # not truly needed if partial instead of wholebrain?
+  setup$last_z <- NULL
+  
+  setup$regi_AP <- match_df_2$mm.from.bregma 
+  setup$regi_z <- stringr::str_extract(match_df_2$image_file, pattern = "Z[0-9]+")  
+  # replace zeros and Z
+  setup$regi_z <- as.numeric(stringr::str_remove(setup$regi_z, pattern = "Z0+"))
+  
+  setup$image_paths <- NULL
+  setup$regi_channel <- file.path(root_path, "small")
+  # I WANT TO ONLY DO REGISTRATION ON DAPI CHANNEL...
+  # REPEATING SEG CHANNEL SO IT DOES NOT BREAK, DOES IT TAKE LONGER !?!?!
+  setup$seg_channel <- setup$regi_channel
+  
+  # im_sort(setup) ## im_sot not working
+  # doing it manually
+  setup$image_paths$regi_paths <- fix_working_environment(match_df_2$image_file, raw_data) 
+  setup$image_paths$seg_paths <-  fix_working_environment(match_df_2$image_file, raw_data)
+  
+  # output folder for registration files...
+  setup$output <- root_path
+  setup <- get_savepaths(setup)
+  
+  regi_loop(setup, ordered_filter_list, autoloop = TRUE, brightness = 40)
+  
+  # save regis object ####
+  # "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/MG952_regis.RData"
+  new_name <- paste0(animal, "_regis.Rdata")
+  save(regis, file = file.path(root_path, 'R_data', new_name))
+  
+  # delete all previous objects
+  rm(filter_list)
+  rm(ordered_filter_list)
+  rm(match_df_2)
+  # regis gets assigned to the global environment
+  rm(regis, envir = .GlobalEnv)
+  rm(setup)
+  rm(root_path)
+  
+}  
+ 
   

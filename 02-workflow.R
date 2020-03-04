@@ -22,7 +22,7 @@ stringr::str_replace(saved_path, ".+raw_data/", local_path)
 
 
 # TODO: make sure it's possible to read previous saved stuff instead of re-running everything
-
+# Please choose directory "001" within the animal you are trying to analyze
 root_path <- choose_directory()
 # get the animal ID from path
 animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
