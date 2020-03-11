@@ -1,3 +1,10 @@
+# step 4
+# Import libraries #####
+library(wholebrain)
+library(SMART)
+library(dplyr)
+library(choices)
+
 # choose working directory
 root_path <- choose_directory()
 # get the animal ID from path
@@ -33,10 +40,11 @@ find_python <- function(){
 
 # find python
 python_options <- find_python()
-choices:::numeric_menu(opts = python_options,
+python3 <- choices:::numeric_menu(opts = python_options,
                        prompt = "Choose your python path (recommended: /usr/bin/python3)")
 
-python_command <- "/home/mike/miniconda3/bin/python read_large.py " 
+# create the command
+python_command <- paste(python3, "read_large.py") 
 
 # helper function to move files
 
@@ -72,7 +80,7 @@ move_crops <- function(root_path, folder_name, pattern="left|right"){
 }
 
 
-## Call python ####
+## Call python: Perform crops and Move files ####
 # This will happen in a for loop and for each channel on each iteration
 for(i in 1:length(c0_files)){
   # c0 command
@@ -80,7 +88,9 @@ for(i in 1:length(c0_files)){
                   '-img_filename', c0_files[i], 
                   '-df_path', df_paths[i],
                   '-grouping_var', "parent_roi_number",
-                  "-display_crop False -display_contours True")
+                  # do not display contours (avoids creating many windows and runs faster)
+                  # useful for debug
+                  "-display_crop False -display_contours False")
   message("cropping c0 files")
   message("Calling ", c0_call)
   
@@ -94,6 +104,8 @@ for(i in 1:length(c0_files)){
                   '-img_filename', c1_files[i],
                   '-df_path', df_paths[i],
                   '-grouping_var', "parent_roi_number",
+                  # do not display contours (avoids creating many windows and runs faster)
+                  # useful for debug
                   "-display_crop False -display_contours False")
   message("cropping c1 files")
   message("Calling ", c1_call)
@@ -104,8 +116,6 @@ for(i in 1:length(c0_files)){
   move_crops(root_path, "c1_crops", pattern="left|right")
 }
   
-
-
 ## Single tif to composite ####
 
 
@@ -127,15 +137,20 @@ if(any(sanity_check$flag == FALSE)){
 ## we believe that if the naming is consistent, files will be correctly sorted
 
 ## Call python ####
-python_command_2 <- "/home/mike/miniconda3/bin/python batch_single_tiff_to_composite.py" 
+python_command_2 <- paste(python3, "batch_single_tiff_to_composite.py")
 
 input_dir_c0 <- paste("-input_dir_c0", fix_spaces(file.path(root_path, "c0_crops")))
 input_dir_c1 <- paste("-input_dir_c1", fix_spaces(file.path(root_path, "c1_crops")))
 
+## STOP POINT ####
 # This command will create stacked images
 system(paste(python_command_2, input_dir_c0, input_dir_c1))
+
+## Make composites with imageJ ####
 # This command will make the composite
-call_imagej <- "/home/mike/Downloads/Fiji.app/ImageJ-linux64 --headless --run"
+# find imageJ on your system
+imageJ <- choices::choose_files(title="Choose your ImageJ executable file", multiple = FALSE)
+call_imagej <- paste(imageJ, " --headless --run")
 # getwd() should be MG_wholebrain_cFos folder
 macro_to_run <- list.files(getwd(), "merge_composites.ijm", full.names = TRUE)
 # mind the commas ('') and double commas, no need to change spaces 
@@ -143,10 +158,12 @@ macro_to_run <- list.files(getwd(), "merge_composites.ijm", full.names = TRUE)
 options(useFancyQuotes = FALSE)
 composite_folder <- shQuote(paste0("input=", dQuote(file.path(root_path, "composites"))))
 
-
+## Stop point #####
+# Call imageJ
 system(paste(call_imagej, macro_to_run, composite_folder))
 
-## subdivide images into training and testing set ####
+
+## Split images into training and testing sets ####
 
 images <- tibble(composites = list.files(file.path(root_path, "composites"),
                                          pattern = ".tif",
@@ -178,5 +195,7 @@ file.rename(testing$composites, testing$new_path)
 # keep track of what happened here
 partition_list <- list(training=training, testing=testing)
 
+## Stop point ####
+# save
 save(partition_list,
      file = file.path(root_path, "composites/train_test_partition.Rdata"))
