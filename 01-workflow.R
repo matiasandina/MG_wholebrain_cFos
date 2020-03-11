@@ -9,11 +9,12 @@
 # don't worry, it's fine  
 # each call takes A WHILE
 
+# Find imageJ on your system
+imageJ <- choices::choose_files(title="Choose your ImageJ executable file", multiple = FALSE)
 # getwd() should be "/home/mike/MG_wholebrain_cFos" (or the equivalent MG_wholebrain_cFos folder)
-
 macro_to_run <- list.files(getwd(), "czi_to_composite_tiff", full.names = TRUE)
   
-system(paste("/home/mike/Downloads/Fiji.app/ImageJ-linux64 --run",
+system(paste(imageJ ,"--run",
                macro_to_run))
 
 
@@ -46,7 +47,22 @@ fix_spaces <- function(x) gsub(x, pattern = " ", replacement = "\\ ", fixed = TR
 # create the input directory for the command line call
 input_dir <- fix_spaces(root_path)
 
-first <- "/home/mike/miniconda3/bin/python batch_composite_to_single_tiff.py -input_dir" 
+find_python <- function(){
+  python_options <- system("which -a python3", intern = TRUE)
+  if(length(python_options) == 0) {
+    stop("COULDN'T FIND PYTHON, DON'T CONTINUE, CHECK YOUR PATH")
+  } else {
+    return(python_options)
+  }
+}
+
+# find python
+python_options <- find_python()
+python3 <- choices:::numeric_menu(opts = python_options,
+                                  prompt = "Choose your python path (recommended: /usr/bin/python3)")
+
+
+python_command <- paste(python3, "-input_dir")
 
 # install.packages("reticulate")
 #reticulate::use_python("YOUR PATH TO PYTHON 3")
@@ -55,4 +71,4 @@ first <- "/home/mike/miniconda3/bin/python batch_composite_to_single_tiff.py -in
 
 # otherwise try with the system command
 # takes a while but will give you progress bar
-system(paste(first, input_dir))
+system(paste(python_command, input_dir))
