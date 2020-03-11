@@ -20,6 +20,22 @@ df_paths <- fix_spaces(df_paths)
 c0_files <- fix_spaces(c0_files)
 c1_files <- fix_spaces(c1_files)
 
+### Find local python #######
+
+find_python <- function(){
+  python_options <- system("which -a python3", intern = TRUE)
+  if(length(python_options) == 0) {
+    stop("COULDN'T FIND PYTHON, DON'T CONTINUE, CHECK YOUR PATH")
+  } else {
+    return(python_options)
+  }
+}
+
+# find python
+python_options <- find_python()
+choices:::numeric_menu(opts = python_options,
+                       prompt = "Choose your python path (recommended: /usr/bin/python3)")
+
 python_command <- "/home/mike/miniconda3/bin/python read_large.py " 
 
 # helper function to move files

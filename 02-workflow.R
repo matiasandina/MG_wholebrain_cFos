@@ -9,7 +9,6 @@ library(dplyr)
 source("resize_pad.R")
 source("find_contours.R")
 source("registration_MLA.R")
-source("create_roi_id_table.R") # there are some functions here
 
 # This little function comes in handy to fix issues with the path
 # when running from different computers, everything up to raw_data will be different
@@ -20,8 +19,22 @@ fix_working_environment <- function(saved_path, local_path){
 stringr::str_replace(saved_path, ".+raw_data/", local_path)
 }
 
+# little helper function to order filter list and avoid repeating code
+# ofl stands for "order filter list"
+ofl <- function(match_df_2, filter_list){
+  # match all in the new order
+  new_order <- sapply(match_df_2$old_names, function(x) which(basename(names(filter_list)) == x))
+  
+  # we need to match the filters with the images
+  ordered_filter_list <- filter_list[new_order]
+  
+  # Check if the reordering was good    
+  message("Checking the order was done properly, should return TRUE")
+  print(identical(basename(names(ordered_filter_list)), match_df_2$old_names)) # should return TRUE
+  
+  return(ordered_filter_list)
+}
 
-# TODO: make sure it's possible to read previous saved stuff instead of re-running everything
 # Please choose directory "001" within the animal you are trying to analyze
 root_path <- choose_directory()
 # get the animal ID from path
@@ -149,16 +162,8 @@ setup$image_paths$seg_paths <-  fix_working_environment(match_df_2$image_file, r
 setup$output <- root_path
 setup <- get_savepaths(setup)
 
-
-  
-# match all in the new order
-new_order <- sapply(match_df_2$old_names, function(x) which(basename(names(filter_list)) == x))
-
-# we need to match the filters with the images
-ordered_filter_list <- filter_list[new_order]
-
-# Check if the reordering was good    
-identical(basename(names(ordered_filter_list)), match_df_2$old_names) # should return TRUE
+# ofl stands for "order filter list"
+ordered_filter_list <- ofl(match_df_2, filter_list)
 
 # Automatic Registration ######
 # Takes ! 15 minutes, will create regis object and save images to places (check setup$savepaths$out_auto_registration) 
@@ -187,85 +192,7 @@ regi_loop(setup, regis = regis,
 # Save regis!
 save(regis, file = previous_regi)
   
-load(file = "/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/R_data/MG952_regis.RData")
 
-# Get contours ####
-# grab all the info from the regis object
-contour_list <- prep_data(regis, ordered_filter_list)
-
-# you can visually inspect with
-# gg_brain(contour_list, grayscale = TRUE)
-
-
-# TAG contour_lists with metadata #####
-
-# TODO: SOLVE BETTER! THIS IS A HACKY WAY OF BINDING DATA! 
-# to match with the names we will need to create the 'order' column
-# EPSatlas$plate.info has the `order` column from 0 to legth - 1 of our 
-contour_list <- purrr::map(.x = contour_list,
-                           .f = function(tt)
-                             mutate(tt, order = as.factor(as.numeric(contour.ID) - 1)))
-
-
-all_plates <- platereturn(match_df_2$mm.from.bregma)
-# this helps keeping the names after the next purrr command
-names(all_plates) <- names(contour_list)
-
-# load atlas & ontology
-load(file.path(.libPaths()[1],"wholebrain","data","EPSatlas.RData"))
-
-
-contour_list <- purrr::map(seq_along(all_plates), 
-                           function(tt){
-                             # tag the list with the specific contour
-                             mutate(contour_list[[tt]], plate = all_plates[tt]) %>%
- # mind the atlas being subsetted at all_plates[tt] (with tt the index of all_plates)
-                               left_join(EPSatlas$plate.info[[all_plates[tt]]],
-                                         by="order")
-                           }
-)
-
-# Get the acronmys #### 
-
-# there is a bunch of other functions that start with get. that can be useful to do the conversion
-# see begining of https://github.com/tractatus/wholebrain/blob/master/R/AllGenerics.R 
-
-# We need to translate from acronym to structure_id
-# We have to choose the parents of the structures we care about and use a recursive get children
-# This comes from SMART package
-rois <- get_all_children(c("ILA", "PL", "BLA", "MOp", "SSp"))
-# Get the numeric ids to filter by structure_id
-structure_ids <- id.from.acronym(rois)
-
-contour_list <- contour_list %>%
-  purrr:::map(
-  function(tt)
-  left_join(tt, create_roi_id_table(tt), by=c("contour.ID", "structure_id")) %>%
-  filter(structure_id %in% structure_ids) %>%
-  mutate(parent_roi_number = as.numeric(as.factor(parent)))
-)
-
-# we have to rename using the previously held names
-names(contour_list) <- names(all_plates)
-
-# Save contours to .csv files ####
-if(!dir.exists(file.path(root_path, "contours"))){
-  dir.create(file.path(root_path, "contours"))
-}
-
-# do some cleaning of the names
-csv_file_names <- tools::file_path_sans_ext(basename(names(contour_list)))
-csv_file_names <- stringr::str_remove(csv_file_names, "small_")
-csv_file_names <- stringr::str_replace(csv_file_names, "_c0", ".csv")
-
-# make the paths
-csv_file_names <- file.path('.', root_path, "contours", csv_file_names) 
-
-purrr::map(1:length(csv_file_names), function(tt){
-  write.csv(x = contour_list[[tt]],
-            file = csv_file_names[[tt]],
-            row.names=FALSE)
-})
 
 
 

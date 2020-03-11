@@ -1,3 +1,21 @@
+# step 3
+# This script will prepare the folders for cropping (step 4)
+# To do that, we need 2 things
+# 1) we have to decide what brain regions we are going to use
+# 2) match regions with whatever is present on regi file
+library(wholebrain)
+library(SMART)
+library(dplyr)
+
+source("create_roi_id_table.R") # there are some functions here
+
+# Please choose directory "001" within the animal you are trying to analyze
+root_path <- choose_directory()
+# get the animal ID from path
+animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
+raw_data <- stringr::str_extract(root_path, ".+raw_data/")
+
+
 # Get contours ####
 # If returning on a new session, we need to read things from before
 filter_list <- readRDS(file = file.path(root_path, 'small', "filter_list"))
@@ -17,7 +35,7 @@ contour_list <- prep_data(regis, ordered_filter_list)
 
 # TAG contour_lists with metadata #####
 
-# TODO: SOLVE BETTER! THIS IS A HACKY WAY OF BINDING DATA! 
+# TODO: CAUTION! THIS IS A HACKY WAY OF BINDING DATA! 
 # to match with the names we will need to create the 'order' column
 # EPSatlas$plate.info has the `order` column going from 0 to legth - 1 of our data
 # to match them, we shift the contour.id (order = contour.id - 1)
