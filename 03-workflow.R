@@ -3,6 +3,7 @@
 # To do that, we need 2 things
 # 1) we have to decide what brain regions we are going to use
 # 2) match regions with whatever is present on regi file
+# Import libraries #####
 library(wholebrain)
 library(SMART)
 library(dplyr)
@@ -10,6 +11,7 @@ library(choices)
 
 source("create_roi_id_table.R") # there are some functions here
 
+# Get directory #####
 # Please choose directory "001" within the animal you are trying to analyze
 root_path <- choose_directory()
 # get the animal ID from path
@@ -72,7 +74,20 @@ contour_list <- purrr::map(seq_along(all_plates),
 # We need to translate from acronym to structure_id
 # We have to choose the parents of the structures we care about and use a recursive get children
 # This comes from SMART package
-rois <- get_all_children(c("ILA", "PL", "BLA", "MOp", "SSp"))
+all_possible_parents <- sort(unique(wholebrain::acronym.from.id(wholebrain:::ontology$parent)))
+
+rois <- select.list(all_possible_parents,
+                           multiple = TRUE,
+                           graphics = TRUE,
+                           title = "Select Parent Brain Regions")
+check_rois <- function(){
+  message("Double check your Brain Regions")
+  print(rois)
+  message("If something missing, re-run `rois <- select.list(...)` command")
+}
+# check rois
+check_rois()
+
 # Get the numeric ids to filter by structure_id
 structure_ids <- id.from.acronym(rois)
 
@@ -98,7 +113,7 @@ csv_file_names <- stringr::str_remove(csv_file_names, "small_")
 csv_file_names <- stringr::str_replace(csv_file_names, "_c0", ".csv")
 
 # make the paths
-csv_file_names <- file.path('.', root_path, "contours", csv_file_names) 
+csv_file_names <- file.path(root_path, "contours", csv_file_names) 
 
 purrr::map(1:length(csv_file_names), function(tt){
   write.csv(x = contour_list[[tt]],

@@ -1,7 +1,9 @@
 # step 2
+# Import libraries #####
 library(wholebrain)
 library(SMART)
 library(dplyr)
+library(choices)
 
 # To remove all objects but not functions
 # rm(list = setdiff(ls(), lsf.str()))
@@ -9,6 +11,7 @@ library(dplyr)
 source("resize_pad.R")
 source("find_contours.R")
 source("registration_MLA.R")
+source("create_setup.R")
 
 # This little function comes in handy to fix issues with the path
 # when running from different computers, everything up to raw_data will be different
@@ -35,6 +38,7 @@ ofl <- function(match_df_2, filter_list){
   return(ordered_filter_list)
 }
 
+# Get Directory #####
 # Please choose directory "001" within the animal you are trying to analyze
 root_path <- choose_directory()
 # get the animal ID from path
@@ -88,7 +92,7 @@ print(image_folder)
 # possible path problems here...
 image_folder <- file.path(root_path, "small")
 
-# MANUAL STEPS #####
+# Manual Step: Match image to atlas #####
 # manual way matching AP level and images
 match_df <- match_image_to_atlas(image_folder)
 
@@ -115,66 +119,32 @@ match_df_2 <- rename_AP(match_df_2)
 # lala <- list.files("raw_data/MG952/001/001/small/", 'tif', full.names = TRUE)
 # file.rename(from = lala, to=gsub(lala, pattern = "_Z[0-9]+", replacement = ""))
 
-
 match_df_2 <- match_df_2 %>%
   # convert to basename to make things simpler with paths
   mutate(old_names = basename(stringr::str_remove(image_file, pattern = "_Z0*[0-9]*")))
-
 
 # Stop point ####
 # save the new df! 
 saveRDS(match_df_2, file.path(root_path, "ordered_atlas_img_path_df"))
   
-match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
-
 # Create setup object ######
+# read previously saved files
+filter_list <- readRDS(file = file.path(root_path, 'small', "filter_list"))
+match_df_2 <- readRDS(file.path(root_path, "ordered_atlas_img_path_df"))
 ## From here, we can get our setup values
-
-setup <- list()
-# First AP
-setup$first_AP <- first(match_df_2$mm.from.bregma)
-# Last AP
-setup$last_AP <- last(match_df_2$mm.from.bregma)
-# First Z value
-# not truly needed if partial instead of wholebrain?
-setup$first_z <- NULL 
-# Last Z value
-# not truly needed if partial instead of wholebrain?
-setup$last_z <- NULL
-
-setup$regi_AP <- match_df_2$mm.from.bregma 
-setup$regi_z <- stringr::str_extract(match_df_2$image_file, pattern = "Z[0-9]+")  
-# replace zeros and Z
-setup$regi_z <- as.numeric(stringr::str_remove(setup$regi_z, pattern = "Z0+"))
-
-setup$image_paths <- NULL
-setup$regi_channel <- file.path(root_path, "small")
-# I WANT TO ONLY DO REGISTRATION ON DAPI CHANNEL...
-# REPEATING SEG CHANNEL SO IT DOES NOT BREAK, DOES IT TAKE LONGER !?!?!
-setup$seg_channel <- setup$regi_channel
-
-# im_sort(setup) ## im_sot not working
-# doing it manually
-setup$image_paths$regi_paths <- fix_working_environment(match_df_2$image_file, raw_data) 
-setup$image_paths$seg_paths <-  fix_working_environment(match_df_2$image_file, raw_data)
-
-# output folder for registration files...
-setup$output <- root_path
-setup <- get_savepaths(setup)
+setup <- create_setup(match_df_2)
 
 # ofl stands for "order filter list"
 ordered_filter_list <- ofl(match_df_2, filter_list)
 
-# Automatic Registration ######
+# Automatic Registration -- Skip if already done ######
 # Takes ! 15 minutes, will create regis object and save images to places (check setup$savepaths$out_auto_registration) 
 # this is a good first pass but needs manual correction
 regi_loop(setup, ordered_filter_list, autoloop = TRUE, brightness = 40)
 
-# manual inspection of regi images #### 
+# Manual Step: inspection of regi images #### 
 plates <- inspect_wrong_regi_plates(setup)
-
-
-# load previous regi if needed
+# load previous regi
 previous_regi <- list.files(file.path(root_path, "R_data"), full.names = TRUE)
 load(file = previous_regi)
 
