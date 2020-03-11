@@ -273,10 +273,13 @@ if __name__ == '__main__':
     parser.add_argument("-df_path", help="path to csv contours")
 #    parser.add_argument("-contour_key_path", help="path to csv with key of contours names and regions per file")
     parser.add_argument("-grouping_var", help="name of the variable to use as grouping for contours")
-    parser.add_argument("-display_crop", help="boolean to display crops", default=False)
-    parser.add_argument("-display_contours", help="boolean to display all contours", default=False)
+    parser.add_argument("-display_crop", help="boolean to display crops", default=False,
+    # this is needed for transforming str to bool
+    type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument("-display_contours", help="boolean to display all contours", default=False,
+    type=lambda x: (str(x).lower() == 'true'))
     args = parser.parse_args()
-
+    
     # read data frame
     args.df = pd.read_csv(args.df_path)
 #    args.contour_key = pd.read_csv(args.contour_key_path)
