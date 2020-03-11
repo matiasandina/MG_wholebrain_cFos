@@ -16,9 +16,9 @@ create_roi_id_table <- function(df, structure_ids=NULL){
   output <- distinct(df, contour.ID, structure_id) %>%
     # get the proper identifiers
     mutate(
-      acronym = acronym_from_id(structure_id), 
+      acronym = acronym.from.id(structure_id), 
       # this will throw a warning
-      parent  = suppressWarnings(get_acronym_parent(acronym)))
+      parent  = suppressWarnings(get.acronym.parent(acronym)))
   
   
   if(is.null(structure_ids)){
