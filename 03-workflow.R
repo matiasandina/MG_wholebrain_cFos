@@ -6,6 +6,7 @@
 library(wholebrain)
 library(SMART)
 library(dplyr)
+library(choices)
 
 source("create_roi_id_table.R") # there are some functions here
 
