@@ -61,8 +61,8 @@ python_options <- find_python()
 python3 <- choices:::numeric_menu(opts = python_options,
                                   prompt = "Choose your python path (recommended: /usr/bin/python3)")
 
-
-python_command <- paste(python3, "-input_dir")
+# create the python command to do composite to single tiff
+python_command <- paste(python3, "batch_composite_to_single_tiff.py","-input_dir")
 
 # install.packages("reticulate")
 #reticulate::use_python("YOUR PATH TO PYTHON 3")
