@@ -19,4 +19,5 @@ TODO: maybe check whether window has been opened ?
 have the ability to quickly scan and discard one particular section.  
 For example, this can be useful when sections are broken.
 
-Speed. pull_atlas gets **really really** slow when too many vectors have to be drawn
+~~Speed. pull_atlas gets **really really** slow when too many vectors have to be drawn.~~ 
+A faster version has been implemented.
