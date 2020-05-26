@@ -120,7 +120,7 @@ match_df <- match_image_to_atlas(image_folder)
 It will display the original small image and an equalized one (know
 shown).
 
-![](img/match_image_to_atlas_01.png)<!-- -->
+<img src="img/match_image_to_atlas_01.png" width="660" />
 
 It will prompt the user with:
 
@@ -128,7 +128,7 @@ It will prompt the user with:
 
 And call `pull_atlas` around that AP level (example shown for AP = 2).
 
-![](img/match_image_to_atlas_02.png)<!-- -->
+<img src="img/match_image_to_atlas_02.png" width="990" />
 
 It will prompt user with options:
 
@@ -205,7 +205,7 @@ This will show the registration files living in the folder
 `registration_auto` and `registration_manual` (if you happen to already
 done some manual registration)
 
-![](img/example_regis.png)<!-- -->
+<img src="img/example_regis.png" width="892" />
 
 It will prompt the user to define whether they want to perform manual
 registration on that image or not. At the end of the loop, the object
