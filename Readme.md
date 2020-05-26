@@ -1,7 +1,8 @@
 MG wholebrain cFos pipeline
 ================
-Matias Andina
-2019-09-23 15:39:45
+
+This repo contains the information and pipeline used to analyze data for
+wholebrain cFos mapping.
 
 # Introduction
 
@@ -25,7 +26,7 @@ We will be working with a tree structure that looks like this
 
 Briefly:
 
-  - `raw_data` will have animal folders by name
+  - `raw_data` will have animal folders by name (“MG\[0-9\]+”).
   - Each animal folder will contain the `.czi` files and a number of
     folders created by the pipeline.
       - `c0` -\>\> DAPI (registration channel)
@@ -38,6 +39,9 @@ Briefly:
 Files are named with this general pattern
 
 # Pipeline
+
+Below, I detail the pipeline, describing what will be done by each of
+the R scripts used to run it.
 
 ## 01-workflow.R
 
@@ -76,8 +80,8 @@ The call to python currently uses this python.
 
 > “/home/mike/miniconda3/bin/python”
 
-It might fail when executed from another computer, so, from command
-line:
+It might fail when executed from another computer. To check where is
+your python located, run from command line:
 
     which python
 
@@ -116,7 +120,7 @@ match_df <- match_image_to_atlas(image_folder)
 It will display the original small image and an equalized one (know
 shown).
 
-![](img/match_image_to_atlas_01.png)<!-- -->
+<img src="img/match_image_to_atlas_01.png" width="660" />
 
 It will prompt the user with:
 
@@ -124,7 +128,7 @@ It will prompt the user with:
 
 And call `pull_atlas` around that AP level (example shown for AP = 2).
 
-![](img/match_image_to_atlas_02.png)<!-- -->
+<img src="img/match_image_to_atlas_02.png" width="990" />
 
 It will prompt user with options:
 
@@ -149,9 +153,8 @@ The result is an object of class `data.frame` with 2 columns:
 
 ``` r
 names(match_df)
+[1] "image_file"     "mm.from.bregma"
 ```
-
-\[1\] “image\_file” “mm.from.bregma”
 
 We could have matched 2 images to the same AP level. Moreover, we could
 have made a mistake during the assignment. Thus, we use the function
@@ -202,7 +205,7 @@ This will show the registration files living in the folder
 `registration_auto` and `registration_manual` (if you happen to already
 done some manual registration)
 
-![](img/example_regis.png)<!-- -->
+<img src="img/example_regis.png" width="892" />
 
 It will prompt the user to define whether they want to perform manual
 registration on that image or not. At the end of the loop, the object
@@ -285,3 +288,8 @@ to be able to later follow what happened (i.e., what image went where).
 We can put all the images back by reversing the `rename.files()` call to
 move files back from the `training/testing` folder to the `composites`
 folder.
+
+## iLastik
+
+We are now ready to move to [iLastik](https://www.ilastik.org) to
+perform pixel classification assisted by human labeling.
