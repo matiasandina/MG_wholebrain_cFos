@@ -14,8 +14,18 @@ imageJ <- choices::choose_files(title="Choose your ImageJ executable file", mult
 # getwd() should be "/home/mike/MG_wholebrain_cFos" (or the equivalent MG_wholebrain_cFos folder)
 macro_to_run <- list.files(getwd(), "czi_to_composite_tiff", full.names = TRUE)
   
-system(paste(imageJ ,"--run",
-               macro_to_run))
+fix_spaces <- function(x){ 
+  # fix spaces
+  x <- gsub(x, pattern = " ", replacement = "\\ ", fixed = TRUE)
+  # convert path for windows
+  if (R.version$os == "mingw32"){
+    x <- gsub("/", replacement = "\\\\", x)
+  }
+  return(x)
+  }
+
+system(paste(fix_spaces(imageJ) ,"--run",
+               fix_spaces(macro_to_run)))
 
 
 #### MANUAL STEP ######
@@ -26,7 +36,7 @@ system(paste(imageJ ,"--run",
 # the imageJ macro puts nasty things into the files, we can remove that
 # select the directory with all the images (i.e., the one you named 001)
 
-root_path <- SMART::choose_directory()
+root_path <- choices::choose_directory()
 # get the animal ID from path
 animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
 
@@ -40,15 +50,16 @@ file.rename(from = old_names, to = new_names)
 
 # composite .tif to single channel .tif ####
 
-
-# fix put \\ if the path has spaces (needed for the console command) 
-fix_spaces <- function(x) gsub(x, pattern = " ", replacement = "\\ ", fixed = TRUE)
-
 # create the input directory for the command line call
 input_dir <- fix_spaces(root_path)
 
 find_python <- function(){
-  python_options <- system("which -a python3", intern = TRUE)
+  if (R.version$os == "mingw32"){
+    python_options <- system("where python", intern = TRUE)  
+    } else {
+    python_options <- system("which -a python3", intern = TRUE)
+    
+  }
   if(length(python_options) == 0) {
     stop("COULDN'T FIND PYTHON, DON'T CONTINUE, CHECK YOUR PATH")
   } else {
@@ -62,7 +73,7 @@ python3 <- choices:::numeric_menu(opts = python_options,
                                   prompt = "Choose your python path (recommended: /usr/bin/python3)")
 
 
-python_command <- paste(python3, "-input_dir")
+python_command <- paste(python3, "batch_composite_to_single_tiff.py", "-input_dir")
 
 # install.packages("reticulate")
 #reticulate::use_python("YOUR PATH TO PYTHON 3")
