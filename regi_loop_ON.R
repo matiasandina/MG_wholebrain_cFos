@@ -5,7 +5,7 @@ library(dplyr)
 
 # CAUTION!
 # hard coded path
-setwd("/home/choilab/MG_wholebrain_cFos")
+#setwd("/home/choilab/MG_wholebrain_cFos")
 source("registration_MLA.R")
 
 # helper ro fix the working environment
@@ -17,6 +17,7 @@ fix_working_environment <- function(saved_path, local_path){
 # CAUTION!
 # hard coded path
 raw_data <- "/media/choilab/Elements/Axio Scan/raw_data/"
+raw_data <- "/SWAP/ChoiLab/YS/"
 
 animals <- list.files(raw_data)
 

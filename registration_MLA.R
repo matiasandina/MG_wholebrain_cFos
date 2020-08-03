@@ -40,6 +40,7 @@ registration_MLA <- function (input,
   
   # File checking #####
   file <- as.character(input)
+  print(file)
   if (!file.exists(file)) 
     stop(file, ", file not found")
   # Generate filenames #####

@@ -41,9 +41,20 @@ process_animal <- function(animal_folders, animal){
   return(out)
 }
 
+process_animal_slow <- purrr::safely(
+  purrr::slowly(process_animal,
+                rate_delay(100)))
+
 t1 <- Sys.time()
-purrr::map(animal_folders$name, function(tt) process_animal(animal_folders, animal = tt)) %>%
-  bind_rows() -> big_df
+#purrr::map(animal_folders$name,
+#           function(tt) process_animal_slow(animal_folders, animal = tt)) %>%
+#  bind_rows() -> big_df
+li <- list()
+for (i in animal_folders$name){
+  print(paste("trying animal", i))
+  li[[i]] <- process_animal_slow(animal_folders, i)
+  
+}
 Sys.time() - t1
 
 # we create a priority table for binding
@@ -52,6 +63,29 @@ priority_table <- data.frame(
   stage = c("manualregis", "autoregis", "match_df", "small", "c0"),
   TODO  = c("Crop ROIs", "Do manual regis", "Do auto regis", "02-workflow.R", "01-workflow.R")
 )
+
+big_df <- map(li, "result") %>% bind_rows()
+
+
+# manualregis folder might exist but be empty
+# mutate way gives an error with path more than one file ?!
+#big_df <- big_df %>% 
+#  mutate(empty = ifelse(stage == "manualregis",
+#                        nrow(drive_ls(as_id(id))),
+#                        NA))
+
+big_df$empty <- NA
+for(i in 1:nrow(big_df)){
+  if (big_df$stage[i] == "manualregis"){
+    print(big_df$animal_id[i])
+    big_df$empty[i] <- nrow(drive_ls(as_id(big_df$id[i])))
+  }
+
+}
+
+# remove those with manualregis folder but no files inside
+big_df <- big_df %>%  filter(is.na(empty) | empty != 0)
+
 
 big_df %>%
   dplyr::select(-id, -drive_resource) %>%
@@ -69,7 +103,7 @@ animal_stages <- animal_stages %>%
                                 "Do auto regis", 
                                 "Do manual regis",
                                 "Crop ROIs"))) %>%
-  arrange(animal_stages, TODO) %>%
+  arrange(stage, TODO) %>%
   mutate(x = as.numeric(TODO)) %>%
   group_by(x) %>% mutate(y = 1:length(x))
 
@@ -82,6 +116,11 @@ ggplot(animal_stages, aes(TODO, y, color=TODO)) +
 
 
 Sys.time() - t1
+
+# =================================================
+
+# look for animals to upload
+# upload not working well right now so don't run
 
 all_animals <- 
 animal_folders %>%
