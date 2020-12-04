@@ -1,12 +1,12 @@
-@File(label="input directory") input
+//@File(label="input directory") input
 // This macro will open a stacked tiff image (n channel)
 // and merge it into a n channel composite
 // CAUTION: it will overwrite the original
 // provide path from console as 'input="/media/mike/Elements/Axio Scan/raw_data/MG952/001/001/composites/test"'
-// MIND THE COMMAS ON THE PATH!!!!!
+// MIND THE QUOTE TYPES ON THE PATH!!!!!
 
-//input = getDirectory("Choose an input directory");
-//print(input);
+input = getDirectory("Choose an input directory");
+print(input);
 // We overwrite the input
 output = input;
 //output = getDirectory("Choose an output directory");

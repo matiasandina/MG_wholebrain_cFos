@@ -44,6 +44,9 @@ root_path <- choose_directory()
 # get the animal ID from path
 animal_id <- stringr::str_extract(root_path, "MG[0-9]+")
 raw_data <- stringr::str_extract(root_path, ".+raw_data/")
+raw_data <- ifelse(is.na(raw_data),
+                   paste0(dirname(dirname(root_path)), "/"),
+                   raw_data)
 
 # find original files
 # c0 is dapi files  

@@ -275,7 +275,7 @@ registration_MLA <- function (input,
   min_dist <- min(abs(coordinate - atlasIndex$mm.from.bregma))
   k <- which(abs(coordinate - atlasIndex$mm.from.bregma) == min_dist)
   
-  
+  print(paste("k value is", k))
   # EPSatlas #####
   # Where does this scaling factor come from, how flexible is it ? 
   xmin <- (plane != "sagittal") * (min(EPSatlas$plates[[k]][[1]]@paths$path@x) - 

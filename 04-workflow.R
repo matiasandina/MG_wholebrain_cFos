@@ -27,16 +27,29 @@ df_paths <- fix_spaces(df_paths)
 c0_files <- fix_spaces(c0_files)
 c1_files <- fix_spaces(c1_files)
 
+# Check for length
+if (!length(c0_files) == length(c1_files)){
+  message("`c0_files` & `c1_files` have different length.\nDO NOT CONTINUE! FIX THAT")
+} else {
+  usethis::ui_done("Looks like c0 and c1 have same length, continue!")
+}
+
 ### Find local python #######
 
 find_python <- function(){
-  python_options <- system("which -a python3", intern = TRUE)
+  if (R.version$os == "mingw32"){
+    python_options <- system("where python", intern = TRUE)  
+  } else {
+    python_options <- system("which -a python3", intern = TRUE)
+    
+  }
   if(length(python_options) == 0) {
     stop("COULDN'T FIND PYTHON, DON'T CONTINUE, CHECK YOUR PATH")
   } else {
     return(python_options)
   }
 }
+
 
 # find python
 python_options <- find_python()
@@ -83,37 +96,41 @@ move_crops <- function(root_path, folder_name, pattern="left|right"){
 ## Call python: Perform crops and Move files ####
 # This will happen in a for loop and for each channel on each iteration
 for(i in 1:length(c0_files)){
-  # c0 command
-  c0_call <- paste(python_command,
-                  '-img_filename', c0_files[i], 
-                  '-df_path', df_paths[i],
-                  '-grouping_var', "parent_roi_number",
-                  # do not display contours (avoids creating many windows and runs faster)
-                  # useful for debug
-                  "-display_crop False -display_contours False")
-  message("cropping c0 files")
-  message("Calling ", c0_call)
-  
-  # actual call
-  system(c0_call)
-  
-  # now move the crops
-  move_crops(root_path, "c0_crops", pattern="left|right")
-  # c1 command
-  c1_call <- paste(python_command,
-                  '-img_filename', c1_files[i],
-                  '-df_path', df_paths[i],
-                  '-grouping_var', "parent_roi_number",
-                  # do not display contours (avoids creating many windows and runs faster)
-                  # useful for debug
-                  "-display_crop False -display_contours False")
-  message("cropping c1 files")
-  message("Calling ", c1_call)
-  
-  # actual call
-  system(c1_call)
-  
-  move_crops(root_path, "c1_crops", pattern="left|right")
+  if (is.na(df_paths[i])){
+    message("df_paths[i] is na, not using that plate!")
+  } else {
+    # c0 command
+    c0_call <- paste(python_command,
+                     '-img_filename', c0_files[i], 
+                     '-df_path', df_paths[i],
+                     '-grouping_var', "parent_roi_number",
+                     # do not display contours (avoids creating many windows and runs faster)
+                     # useful for debug
+                     "-display_crop False -display_contours False")
+    message("cropping c0 files")
+    message("Calling ", c0_call)
+    
+    # actual call
+    system(c0_call)
+    
+    # now move the crops
+    move_crops(root_path, "c0_crops", pattern="left|right")
+    # c1 command
+    c1_call <- paste(python_command,
+                     '-img_filename', c1_files[i],
+                     '-df_path', df_paths[i],
+                     '-grouping_var', "parent_roi_number",
+                     # do not display contours (avoids creating many windows and runs faster)
+                     # useful for debug
+                     "-display_crop False -display_contours False")
+    message("cropping c1 files")
+    message("Calling ", c1_call)
+    
+    # actual call
+    system(c1_call)
+    
+    move_crops(root_path, "c1_crops", pattern="left|right")
+  }
 }
   
 ## Single tif to composite ####
@@ -125,12 +142,12 @@ sanity_check <- tibble::tibble(
   c1 = list.files(file.path(root_path, "c1_crops"), full.names = TRUE)) %>%
   mutate(x = stringr::str_remove(basename(c0), "_c0"),
          y = stringr::str_remove(basename(c1), "_c1"),
-         flag = identical(x,y))
+         flag = x == y)
 
 if(any(sanity_check$flag == FALSE)){
   message("ERROR IN THE ORDER OF FILES.\nCheck `sanity_check` with View(sanity_check).\nDO NOT PROCEED WITH PIPELINE!")
 } else {
-    message("Files match, proceed with pipeline :)")
+    usethis::ui_done("Files match, proceed with pipeline :)")
   }
 
 ## at the end of the day, we also rely on python listdir_fullpath to have the same sorting arrangement
@@ -142,9 +159,10 @@ python_command_2 <- paste(python3, "batch_single_tiff_to_composite.py")
 input_dir_c0 <- paste("-input_dir_c0", fix_spaces(file.path(root_path, "c0_crops")))
 input_dir_c1 <- paste("-input_dir_c1", fix_spaces(file.path(root_path, "c1_crops")))
 
-## STOP POINT ####
 # This command will create stacked images
 system(paste(python_command_2, input_dir_c0, input_dir_c1))
+## STOP POINT ####
+
 
 ## Make composites with imageJ ####
 # This command will make the composite
@@ -158,14 +176,14 @@ macro_to_run <- list.files(getwd(), "merge_composites.ijm", full.names = TRUE)
 options(useFancyQuotes = FALSE)
 composite_folder <- shQuote(paste0("input=", dQuote(file.path(root_path, "composites"))))
 
-## Stop point #####
 # Call imageJ
 system(paste(call_imagej, macro_to_run, composite_folder))
+## Stop point #####
 
 
 ## Split images into training and testing sets ####
-
-images <- tibble(composites = list.files(file.path(root_path, "composites"),
+library(stringr)
+images <- tibble::tibble(composites = list.files(file.path(root_path, "composites"),
                                          pattern = ".tif",
                                          full.names=TRUE),
        parent_roi = str_extract(composites, "parent_roi_.*_composite")) %>%
