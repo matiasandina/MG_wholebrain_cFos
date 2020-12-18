@@ -14,10 +14,17 @@ source("select_rect.R")
 # contour props -----------------------------------------------------------
 # helper to get the properties of the contours
 contour_props <- function(cont_list){
+  if (is_empty(cont_list)){
+    return(data.frame(x=NA, y=NA, area=0))
+  }
   purrr::map(cont_list, function(li, x, y){
-    area = abs(pracma::polyarea(li$x, li$y))
-    centroid = pracma::poly_center(li$x, li$y)
-    return(data.frame(x=centroid[1], y=centroid[2], area=area))
+    area <- abs(pracma::polyarea(li$x, li$y))
+    centroid <- pracma::poly_center(li$x, li$y)
+    out <- data.frame(x = centroid[1], 
+                     y = centroid[2], 
+                     area = area)
+  
+    return(out)
   }
   )
 }
@@ -61,6 +68,79 @@ dot.plot <- function(df, animal_id, mode="value", folder = NULL){
 }
 
 
+# Check contour length ----------------------------------------------------
+
+check_contour_length <- function(fos_contours){
+  for (crop in 1:length(fos_contours)){
+    if(length(fos_contours[[crop]]) > 0) {
+      for (detection in 1:length(fos_contours[[crop]])){
+        x_len <- length(fos_contours[[crop]][[detection]]$x)
+        y_len <- length(fos_contours[[crop]][[detection]]$y)
+        
+        same_length <- identical(x_len, y_len)
+        if(same_length == FALSE | x_len < 3) {
+          message(sprintf("Crop %s detection %s has unequal length or length < 3. See below:", crop, detection))
+          print(fos_contours[[crop]][[detection]])
+          # remove
+          fos_contours[[crop]][[detection]] <- NULL
+          message("This was fixed by removing that detection to prevent further errors.")
+          # stop()
+        }
+      }
+    }
+
+  }
+  usethis::ui_done("Contours have same length on xy and `length(contour) > 3`\nProceed with pipeline")
+  return(fos_contours)
+}
+
+
+
+# find biggest contour on image for calculating ROI area ------------------
+# this comes from the wholebrain pipeline but has been modified
+find_contours <- function(filename){
+  
+  # print some things
+  message(sprintf("Processing %s", filename))
+  
+  # Let's do image processing first
+  img <- imager::load.image(filename)
+  # stick only to first channel (tiffs might have 2)
+  if(dim(img)[3] > 1){
+    img <- img[, , 1, ] %>% imager::as.cimg()
+  }
+  
+  pad_size <- 50
+  
+  out <- img %>%
+    # very permisive thresholding!
+    imager::threshold(0.8) %>%
+    imager::clean(2) %>% 
+    imager::pad(nPix = pad_size, axes = "xy")
+  
+  
+  #plot(out)
+  cont_list <- imager::contours(out)
+  
+  # polyarea calculates the area of a polygon defined by the vertices with coordinates x and y. 
+  # Areas to the left of the vertices are positive, those to the right are counted negative.
+  # We can wrap this function
+  get_max_area <- function(cont_list){
+    purrr::map(cont_list, function(li, x, y) abs(pracma::polyarea(li$x, li$y)))
+  }
+  
+  areas <- get_max_area(cont_list)
+  # get max contour
+  biggest <- cont_list[[which.max(areas)]] 
+  
+  # adjust the pad size/2 because pad on both xy sides
+  biggest$x <- biggest$x - pad_size/2
+  biggest$y <- biggest$y - pad_size/2
+  biggest$area <- areas[[which.max(areas)]] %>% unlist()
+    
+  return(biggest)
+}
+
 
 
 # Load Ilastik results ----------------------------------------------------
@@ -69,6 +149,9 @@ dot.plot <- function(df, animal_id, mode="value", folder = NULL){
 composite_folder <- choose_directory(title = "Select composites folder")
 images <- list.files(composite_folder, recursive = T, pattern="tif", full.names = T)
 h5_files <- list.files(composite_folder, recursive = T, pattern = "h5", full.names = T) 
+if (length(images) != length(h5_files)){
+  usethis::ui_stop("`length(images)` is different from `length(h5_files)`. Check input!")
+}
 root_path <- dirname(composite_folder)
 
 animal_id <- str_extract(root_path, "MG[0-9]+")
@@ -76,6 +159,37 @@ animal_id <- str_extract(root_path, "MG[0-9]+")
 file_props <- purrr::map(h5_files, h5ls) %>% bind_rows()
 #explore file properties
 file_props
+
+# get the areas for all images
+
+roi_area_list <- map(images, find_contours)
+names(roi_area_list) <- images
+
+dir.create(file.path(root_path, "results"))
+save_name <- file.path(root_path, "results",
+                       paste(animal_id,"roi_area_list.Rdata", sep="_")
+)
+save(roi_area_list, file=save_name)
+
+if("roi_area_list" %in% ls() == FALSE){
+  load(save_name)
+}
+
+
+roi_areas <- map(roi_area_list, "area") %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(area=value)
+
+map(images[1:5], 
+    function(tt){
+      imager::load.image(tt) %>% imager::as.cimg() %>% 
+        imager::frame(1) %>% plot
+      lines(roi_area_list[[tt]]$x,
+            roi_area_list[[tt]]$y,
+            col="yellow")
+    }
+    )
 
 # read exported data 
 li <- purrr::map(h5_files, function(tt) h5read(tt, name="exported_data"))
@@ -93,6 +207,9 @@ threshold_prob <- 0.6
 fos_positive <- purrr::map(fos_plane,
       function(tt) ifelse(tt < threshold_prob, 0, 1))
 
+# and do garbage collection
+rm(fos_plane); gc() 
+
 # dilate with sq kernel of 3
 fos_positive <- purrr::map(fos_positive,
                            function(tt) imager::dilate_square(
@@ -104,20 +221,24 @@ fos_positive <- purrr::map(fos_positive,
 fos_contours <- purrr::map(fos_positive,
                            function(tt) imager::contours(imager::as.cimg(tt), nlevels=1))
 
+
+# check contour length, sometimes detections have contour length < 3
+# that will create errors downstream
+fos_contours <- check_contour_length(fos_contours)
+
 # STOP POINT -----
-# create directory for results
-dir.create(file.path(root_path, "results"))
 save_name <- file.path(root_path, "results",
                        paste(animal_id,"fos_contours.Rdata", sep="_")
                        )
 save(fos_contours, file=save_name)
 
-#readRDS(file = file.path(root_path, "results", paste(animal_id, "fos_contours", sep="_")))
-#qq <- file.path(root_path, "results", paste(animal_id, "fos_contours", sep="_"))
-#read_rds(path = qq)
+# To reload the Rdata file
+save_name <- file.path(root_path, "results",
+                       paste(animal_id,"fos_contours.Rdata", sep="_")
+)
+load(save_name)
 
-
-# 
+# Calculate the areas and centroids ----
 fos_areas <- purrr::map(fos_contours, 
                           function(tt) contour_props(tt))
 
@@ -169,7 +290,7 @@ cell_counts <- sapply(fos_areas,
                       function(tt) tt %>% filter(area>area_threshold) %>% nrow()) 
 
 # we need a measure of density not only counts!
-# grab the area of each image from file_props
+# grab image props from file_props
 file_props %>%
   select(dim) %>%
   separate(dim, into=c("rows","cols", "chann"),
@@ -188,11 +309,11 @@ cell_counts %>%
 # bind with the image width and height info
 cell_counts <- 
 cell_counts %>%
-  left_join(im_w_h, by="name") %>% 
-   mutate(roi_area = rows * cols,
-          cell_dens = value / roi_area) %>% 
-  select(-rows, -cols, -chann)
-
+  # here we get image props
+  #left_join(im_w_h, by="name") %>% 
+  # here we get the actual areas from contour
+  left_join(roi_areas, by="name") %>% 
+   mutate(cell_dens = value / area) 
 
 
 # Get the AP coordinates from match_df_2 ----------------------------------
@@ -210,6 +331,12 @@ cell_counts %>%
          img_source = str_remove(img_source, "_left.+|_right.+")) 
 
 
+if(sum(complete.cases(cell_counts)) != nrow(cell_counts)){
+  usethis::ui_warn("cell_counts contains `NA`s!")
+} else {
+  usethis::ui_done("Data looks complete :)")
+}
+
 # merge
 cell_counts <-
 cell_counts %>%
@@ -217,12 +344,17 @@ cell_counts %>%
   filter(complete.cases(.)) %>% 
   left_join(dplyr::select(match_df_2, img_source, mm.from.bregma))
 
+# save cell counts
+readr::write_csv(cell_counts,
+                 file.path(root_path, "results", paste0(animal_id, "_counts.csv")))
+
+
 cell_counts %>% 
   mutate(AP = factor(round(mm.from.bregma, 2)),
          AP = fct_rev(AP)) %>% 
   # we need to remove the things that make observations unique
   # so that we can pivot wider
-  select(-roi_area) %>% 
+  select(-area) %>% 
   pivot_wider(-name, names_from = side,
               values_from = c(value, cell_dens)) %>% 
   # create a max count 
@@ -237,20 +369,8 @@ split(cell_counts_wide, cell_counts_wide$img_source) %>%
   purrr::map(dot.plot, animal_id, folder=file.path(root_path, "results"))
 
 # Write the table to export as csv
-readr::write_csv(cell_counts_wide, file.path(root_path, "results", paste0(animal_id, "_counts.csv")))
+readr::write_csv(cell_counts_wide, file.path(root_path, "results", paste0(animal_id, "_counts_wide.csv")))
 
 
-# Plots we want -----------------------------------------------------------
-
-# Variables
-# * AP: many
-# * Treatment: CD3(4), Saline (4), Saline(2), IL17-ICV(3)
-# * Genotype: WT, MIA, CNTNAP2, FMR1
-
-# Select representative AP levels (+- 0.5 mm) and average within roi and side
-# Then average between animals of same genotype~treatment for same AP and ROI 
-# Then dot plot
-# color code by Treatment, not left/right
-# facet_grid(genotype ~ AP)
 
 
