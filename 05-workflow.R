@@ -9,6 +9,7 @@
 library("rhdf5")
 library("tidyverse")
 library("choices")
+library("progress")
 
 source("select_rect.R")
 # contour props -----------------------------------------------------------
@@ -141,6 +142,90 @@ find_contours <- function(filename){
   return(biggest)
 }
 
+# this function is used to split a vector into chunks
+# we will process our information in batches
+chunk2 <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE)) 
+
+# process data function ----
+process_data <- function(h5_files){
+  n_batches <- min(c(10, length(h5_files)))
+  batches <- chunk2(h5_files, n=n_batches)
+  # pb bar
+  pb <- progress_bar$new(
+    format = "  processing batch [:bar] :percent eta: :eta",
+    total = n_batches, clear = FALSE, width= 60)
+  
+  results <- list()
+  # We do this in a for loop to be able to discard intermediate results
+  for (batch in batches){
+    # read exported data 
+    li <- purrr::map(batch, function(tt) h5read(tt, name="exported_data"))
+    
+    # get the fos on channel 2
+    fos_plane <- purrr::map(li,
+                            function(tt) tt[,,2])
+    # remove li to free memory (several Gb !!)
+    # and do garbage collection
+    rm(li); gc() 
+    
+    # threshold for probability of positive case 
+    threshold_prob <- 0.6
+    fos_positive <- purrr::map(fos_plane,
+                               function(tt) ifelse(tt < threshold_prob, 0, 1))
+    
+    # and do garbage collection
+    rm(fos_plane); gc() 
+    
+    # dilate with sq kernel of 3
+    fos_positive <- purrr::map(fos_positive,
+                               function(tt) imager::dilate_square(
+                                 imager::as.cimg(tt),
+                                 3))
+    
+    # might need to threshold first
+    # takes A LONG time, nlevels=1 is key to get only one contour
+    fos_contours <- purrr::map(fos_positive,
+                               function(tt) imager::contours(imager::as.cimg(tt), nlevels=1))
+    
+    # get it out onto the result list
+    results <- append(results, fos_contours)
+    pb$tick()
+  }
+  
+  return(results)
+}
+
+
+# check for previous data -------------------------------------------------
+
+load_previous_Rdata <- function(save_name, object_name) {
+  
+  # check the object names
+  if(object_name %in% c("roi_area_list", "fos_contours") == FALSE){
+    stop("`object_name` must be either 'roi_area_list' or 'fos_contours'")
+  }
+  # check you use proper pair of save_name and object name
+  if(str_detect(save_name, object_name) == FALSE){
+    usethis::ui_stop(c(
+      "Provided objects don't match",
+      "check that `object_name` is the object stored at the path of `save_name`",
+      object_name,
+      save_name
+    ))
+  }
+
+  if(object_name %in% ls() == FALSE) {
+    tryCatch(
+      {
+        suppressMessages(load(save_name, envir = .GlobalEnv))
+        usethis::ui_done(c(paste(object_name, "retrieved from previous run!"),
+                           "Skip to next section"))
+      },
+      error=function(e) usethis::ui_warn(c(paste(object_name, "might not exist"),
+                                                   "run following code section to create it")) 
+    )
+  }
+}
 
 
 # Load Ilastik results ----------------------------------------------------
@@ -160,27 +245,27 @@ file_props <- purrr::map(h5_files, h5ls) %>% bind_rows()
 #explore file properties
 file_props
 
+# Get ROI area ----
 # get the areas for all images
-
-roi_area_list <- map(images, find_contours)
-names(roi_area_list) <- images
-
-dir.create(file.path(root_path, "results"))
 save_name <- file.path(root_path, "results",
                        paste(animal_id,"roi_area_list.Rdata", sep="_")
 )
+
+# try to load
+load_previous_Rdata(save_name, "roi_area_list")
+# if loaded properly, skip next 4 lines
+options("max.contour.segments"= 300000)
+roi_area_list <- map(images, find_contours)
+names(roi_area_list) <- images
+dir.create(file.path(root_path, "results"))
 save(roi_area_list, file=save_name)
 
-if("roi_area_list" %in% ls() == FALSE){
-  load(save_name)
-}
-
-
+# continue here
 roi_areas <- map(roi_area_list, "area") %>%
   enframe() %>%
   unnest(value) %>%
   rename(area=value)
-
+# check that the areas were properly calculated
 map(images[1:5], 
     function(tt){
       imager::load.image(tt) %>% imager::as.cimg() %>% 
@@ -191,52 +276,20 @@ map(images[1:5],
     }
     )
 
-# read exported data 
-li <- purrr::map(h5_files, function(tt) h5read(tt, name="exported_data"))
 
-# get the fos on channel 2
-fos_plane <- purrr::map(li,
-                           function(tt) tt[,,2])
-# remove li to free memory (several Gb !!)
-# and do garbage collection
-rm(li); gc() 
-
-
-# threshold for probability of positive case 
-threshold_prob <- 0.6
-fos_positive <- purrr::map(fos_plane,
-      function(tt) ifelse(tt < threshold_prob, 0, 1))
-
-# and do garbage collection
-rm(fos_plane); gc() 
-
-# dilate with sq kernel of 3
-fos_positive <- purrr::map(fos_positive,
-                           function(tt) imager::dilate_square(
-                             imager::as.cimg(tt),
-                             3))
-
-# might need to threshold first
-# takes A LONG time, nlevels=1 is key to get only one contour
-fos_contours <- purrr::map(fos_positive,
-                           function(tt) imager::contours(imager::as.cimg(tt), nlevels=1))
-
-
-# check contour length, sometimes detections have contour length < 3
-# that will create errors downstream
-fos_contours <- check_contour_length(fos_contours)
-
-# STOP POINT -----
-save_name <- file.path(root_path, "results",
-                       paste(animal_id,"fos_contours.Rdata", sep="_")
-                       )
-save(fos_contours, file=save_name)
-
-# To reload the Rdata file
+# fos contours ------------------------------------------------------------
 save_name <- file.path(root_path, "results",
                        paste(animal_id,"fos_contours.Rdata", sep="_")
 )
-load(save_name)
+
+load_previous_Rdata(save_name, "fos_contours")
+# if loaded properly, next 3 lines
+fos_contours <- process_data(h5_files)
+# check contour length, sometimes detections have contour length < 3
+# that will create errors downstream
+fos_contours <- check_contour_length(fos_contours)
+# STOP POINT -----
+save(fos_contours, file=save_name)
 
 # Calculate the areas and centroids ----
 fos_areas <- purrr::map(fos_contours, 
